@@ -33,9 +33,21 @@
   h1 { font-size: 22px; font-weight: normal; margin: 4px 0 12px; letter-spacing: 1px; }
   .cur { animation: blink 1s steps(1) infinite; }
   @keyframes blink { 50% { opacity: 0; } }
-  .tabs { display: flex; gap: 4px; margin-bottom: 12px; }
-  .tabs button { flex: 1; padding: 8px 2px; border: 1px solid var(--fg); border-radius: 0; background: transparent; color: var(--fg);
-         font: inherit; font-size: 11px; text-transform: uppercase; letter-spacing: 0; text-shadow: inherit; }
+  .sg { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tile { border: 1px solid var(--c); background: #020803; padding: 10px 8px 9px; color: var(--c); text-align: center; min-width: 0;
+         box-shadow: 0 0 10px var(--cg), inset 0 0 14px var(--cg); text-shadow: 0 0 4px var(--cg), 0 0 10px var(--cg); }
+  .tile .ti { display: block; margin: 0 auto 4px; line-height: 0; filter: drop-shadow(0 0 4px var(--c)); }
+  .tile .tl { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; }
+  .tile .tv { font-size: 21px; font-weight: 700; margin: 4px 0 3px; white-space: nowrap; }
+  .tile .ts { font-size: 11px; opacity: .85; min-height: 28px; line-height: 1.2; }
+  .t1 { --c: #33ff66; --cg: rgba(51,255,102,.25); } .t2 { --c: #35e6ff; --cg: rgba(53,230,255,.25); }
+  .t3 { --c: #ffb000; --cg: rgba(255,176,0,.25); } .t4 { --c: #ff5ac8; --cg: rgba(255,90,200,.25); }
+  .sbar { display: flex; height: 14px; border: 1px solid var(--line); background: var(--track); margin-top: 6px; }
+  .sbar i { display: block; height: 100%; }
+  .sleg { display: flex; justify-content: space-between; font-size: 11px; margin-top: 5px; }
+  .tabs { display: flex; gap: 3px; margin-bottom: 12px; }
+  .tabs button { flex: 1; min-width: 0; padding: 8px 0; border: 1px solid var(--fg); border-radius: 0; background: transparent; color: var(--fg);
+         font: inherit; font-size: 10px; text-transform: uppercase; letter-spacing: 0; text-shadow: inherit; }
   .tabs button.on { background: var(--fg); color: var(--bg); text-shadow: none; box-shadow: 0 0 10px rgba(51,255,102,.6); }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 0; padding: 12px; margin-bottom: 12px;
          box-shadow: 0 0 12px rgba(51,255,102,.12), inset 0 0 18px rgba(51,255,102,.05); }
@@ -86,7 +98,7 @@
   .chip .ico { display: block; margin: 0 auto 3px; }
   .chip.on { background: var(--fg); color: var(--bg); text-shadow: none; box-shadow: 0 0 10px rgba(51,255,102,.6); }
   .chip.on .ico { filter: none; }
-  #v-spesa, #v-entrata, #v-giro, #v-rate, #v-riep { animation: boot .25s steps(5); }
+  #v-spesa, #v-entrata, #v-giro, #v-rate, #v-riep, #v-saldi { animation: boot .25s steps(5); }
   @keyframes boot { 0% { opacity: 0; transform: translateY(6px); } 100% { opacity: 1; transform: none; } }
   circle { transition: stroke-dasharray .9s steps(14); }
   .fill { transition: width .9s steps(14); }
@@ -116,6 +128,7 @@
   <button id="t-giro"><span class="ico" data-ic="refresh"></span>Giro</button>
   <button id="t-rate"><span class="ico" data-ic="calendar"></span>Rate</button>
   <button id="t-riep"><span class="ico" data-ic="chart-line"></span>Riepilogo</button>
+  <button id="t-saldi"><span class="ico" data-ic="coins"></span>Saldi</button>
 </div>
 
 <div id="v-spesa" class="card">
@@ -157,6 +170,12 @@
 
 <div id="v-rate" class="hide">
   <div id="rt-body"></div>
+</div>
+
+<div id="v-saldi" class="card hide">
+  <div class="titlebar"><span>SALDI.EXE</span><i></i><i></i><i></i></div>
+  <div id="sd-body">Caricamento...</div>
+  <button class="go" id="sd-go" style="margin-top:12px"><span class="ico" data-ic="refresh"></span>Aggiorna</button>
 </div>
 
 <div id="v-riep" class="hide">
@@ -223,7 +242,7 @@ function chiama(fn, args) {
   if (!cfg) { mostraSetup(); return Promise.reject(new Error('Collegamento non configurato')); }
   return chiamaCon(cfg, fn, args).catch(function (e) { if (e.auth) mostraSetup('Chiave non valida: reinseriscila'); throw e; });
 }
-var FUNZIONI_API = ['getConfig', 'aggiungiSpesa', 'aggiungiEntrata', 'aggiungiGiroconto', 'getGiroconti', 'getRiepilogo', 'getRate', 'getUltimo', 'annullaUltimo'];
+var FUNZIONI_API = ['getConfig', 'aggiungiSpesa', 'aggiungiEntrata', 'aggiungiGiroconto', 'getGiroconti', 'getSaldi', 'getRiepilogo', 'getRate', 'getUltimo', 'annullaUltimo'];
 window.google = { script: { get run() {
   var s, f, o = { withSuccessHandler: function (x) { s = x; return o; }, withFailureHandler: function (x) { f = x; return o; } };
   FUNZIONI_API.forEach(function (n) {
@@ -303,15 +322,16 @@ function creaChips(contId, selId, lista) {
 }
 riempiIcone();
 function show(which) {
-  ['spesa', 'entrata', 'giro', 'rate', 'riep'].forEach(function (k) {
+  ['spesa', 'entrata', 'giro', 'rate', 'riep', 'saldi'].forEach(function (k) {
     $('v-' + k).classList.toggle('hide', k !== which);
     $('t-' + k).classList.toggle('on', k === which);
   });
   if (which === 'riep') caricaRiepilogo();
   if (which === 'rate') caricaRate();
   if (which === 'giro') caricaGiro();
+  if (which === 'saldi') caricaSaldi();
 }
-['spesa', 'entrata', 'giro', 'rate', 'riep'].forEach(function (k) { $('t-' + k).onclick = function () { show(k); }; });
+['spesa', 'entrata', 'giro', 'rate', 'riep', 'saldi'].forEach(function (k) { $('t-' + k).onclick = function () { show(k); }; });
 
 function setMsg(id, text, ok) {
   var m = $(id); m.textContent = text; m.className = 'msg ' + (ok ? 'ok' : 'err');
@@ -424,6 +444,41 @@ $('e-go').onclick = function () {
   });
 };
 
+function eur2(n) { return n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '\u00A0€'; }
+function tessera(cls, ic, titolo, valore, sub) {
+  var t = el('div', undefined, 'tile ' + cls);
+  var i = el('span', undefined, 'ti'); i.innerHTML = svgIcona(ic, 34); t.appendChild(i);
+  t.appendChild(el('div', titolo, 'tl'));
+  t.appendChild(el('div', nb(valore), 'tv'));
+  t.appendChild(el('div', sub || '', 'ts'));
+  return t;
+}
+function caricaSaldi() {
+  var box = $('sd-body'); box.textContent = 'Caricamento...';
+  google.script.run.withSuccessHandler(function (d) {
+    box.textContent = '';
+    var g = el('div', undefined, 'sg');
+    g.appendChild(tessera('t1', 'card', 'Conto corrente', d.corrente, 'saldo del ' + d.dataBase + ' + movimenti registrati da allora'));
+    g.appendChild(tessera('t2', 'lock', 'Conto deposito', d.deposito, 'somma dei giroconti, interessi esclusi'));
+    g.appendChild(tessera('t3', 'trending-up', 'Investimenti', d.investimenti, 'Trade Republic: valore al ' + d.dataBase + ' + PAC versati da allora (senza andamento mercato)'));
+    var sub = d.speseNum + ' movimenti' + (d.speseFuoriConto > 0 ? ' · esclusi ' + fmtEuro(d.speseFuoriConto) + ' fuori conto' : '');
+    g.appendChild(tessera('t4', 'banknote', 'Spese del mese', eur2(d.speseMese), sub));
+    box.appendChild(g);
+    var parti = [['t1', '#33ff66', d.correnteNum], ['t2', '#35e6ff', d.depositoNum], ['t3', '#ffb000', d.investimentiNum]];
+    var somma = parti.reduce(function (a, p) { return a + Math.max(p[2], 0); }, 0);
+    if (somma > 0) {
+      box.appendChild(el('div', 'Patrimonio: ' + eur2(somma), 'cap')).style.marginTop = '14px';
+      var bar = el('div', undefined, 'sbar');
+      parti.forEach(function (p) { var s = el('i'); s.style.width = (Math.max(p[2], 0) / somma * 100) + '%'; s.style.background = p[1]; bar.appendChild(s); });
+      box.appendChild(bar);
+      var leg = el('div', undefined, 'sleg');
+      parti.forEach(function (p) { var x = el('span', Math.round(Math.max(p[2], 0) / somma * 100) + '%'); x.style.color = p[1]; leg.appendChild(x); });
+      box.appendChild(leg);
+    }
+  }).withFailureHandler(function (e) { box.textContent = 'Errore: ' + e.message; }).getSaldi();
+}
+$('sd-go').onclick = caricaSaldi;
+
 function caricaGiro() {
   var box = $('g-lista'); box.textContent = '';
   google.script.run.withSuccessHandler(function (g) {
@@ -463,7 +518,7 @@ $('g-go1').onclick = function () { inviaGiro('Corrente \u2192 Deposito', 'g-go1'
 $('g-go2').onclick = function () { inviaGiro('Deposito \u2192 Corrente', 'g-go2'); };
 
 // Swipe sinistra/destra per cambiare scheda: Spesa <-> Entrata <-> Rate <-> Riepilogo
-var ORDINE = ['spesa', 'entrata', 'giro', 'rate', 'riep'];
+var ORDINE = ['spesa', 'entrata', 'giro', 'rate', 'riep', 'saldi'];
 function schedaCorrente() {
   for (var i = 0; i < ORDINE.length; i++) if ($('t-' + ORDINE[i]).classList.contains('on')) return i;
   return 0;
