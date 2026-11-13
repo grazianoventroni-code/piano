@@ -151,7 +151,7 @@
   <label>Descrizione</label><input id="e-desc" type="text">
   <label>Data incasso</label><input id="e-data" type="date">
   <label>Mese di competenza</label><input id="e-mese" type="month">
-  <label>Note (facoltativo)</label><input id="e-note" type="text">
+  <label>Note (facoltativo; scrivi «contanti» se ricevi contanti)</label><input id="e-note" type="text">
   <button class="go" id="e-go"><span class="ico" data-ic="save"></span>Registra entrata</button>
   <div class="msg" id="e-msg"></div>
   <button class="undo" onclick="annullaUltimoUI('e-msg')"><span class="ico" data-ic="undo"></span>Annulla ultimo inserimento</button>
@@ -462,7 +462,7 @@ function caricaSaldi(silent) {
     var g = el('div', undefined, 'sg');
     g.appendChild(tessera('t1', 'card', 'Conto corrente', d.corrente, 'saldo del ' + d.dataBase + ' + movimenti registrati da allora'));
     g.appendChild(tessera('t2', 'lock', 'Conto deposito', d.deposito, 'somma dei giroconti, interessi esclusi'));
-    g.appendChild(tessera('t3', 'trending-up', 'Investimenti', d.investimenti, 'Trade Republic: valore al ' + d.dataBase + ' + PAC versati da allora (senza andamento mercato)'));
+    g.appendChild(tessera('t3', 'trending-up', 'Investimenti', d.investimenti, 'titoli Trade Republic + PAC automatico del 16 (senza andamento mercato)'));
     var sub = d.speseNum + ' movimenti' + (d.speseFuoriConto > 0 ? ' · esclusi ' + fmtEuro(d.speseFuoriConto) + ' fuori conto' : '');
     g.appendChild(tessera('t4', 'banknote', 'Spese del mese', eur2(d.speseMese), sub));
     if (d.contanti !== undefined) {
