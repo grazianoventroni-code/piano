@@ -42,6 +42,7 @@
   .tile .ts { font-size: 11px; opacity: .85; min-height: 28px; line-height: 1.2; }
   .t1 { --c: #33ff66; --cg: rgba(51,255,102,.25); } .t2 { --c: #35e6ff; --cg: rgba(53,230,255,.25); }
   .t3 { --c: #ffb000; --cg: rgba(255,176,0,.25); } .t4 { --c: #ff5ac8; --cg: rgba(255,90,200,.25); }
+  .t5 { --c: #b58cff; --cg: rgba(181,140,255,.25); } .sg .wide { grid-column: 1 / -1; }
   .sbar { display: flex; height: 14px; border: 1px solid var(--line); background: var(--track); margin-top: 6px; }
   .sbar i { display: block; height: 100%; }
   .sleg { display: flex; justify-content: space-between; font-size: 11px; margin-top: 5px; }
@@ -137,7 +138,7 @@
   <label>Categoria</label><div id="s-chips" class="chips"></div><select id="s-cat" class="hide"></select>
   <label>Descrizione</label><input id="s-desc" type="text">
   <label>Data</label><input id="s-data" type="date">
-  <label>Note (facoltativo)</label><input id="s-note" type="text">
+  <label>Note (facoltativo; scrivi «contanti» se paghi in contanti)</label><input id="s-note" type="text">
   <button class="go" id="s-go"><span class="ico" data-ic="save"></span>Registra spesa</button>
   <div class="msg" id="s-msg"></div>
   <button class="undo" onclick="annullaUltimoUI('s-msg')"><span class="ico" data-ic="undo"></span>Annulla ultimo inserimento</button>
@@ -163,6 +164,7 @@
   <label>Note (facoltativo)</label><input id="g-note" type="text">
   <button class="go" id="g-go1"><span class="ico" data-ic="save"></span>Corrente → Deposito</button>
   <button class="go" id="g-go2" style="margin-top:8px"><span class="ico" data-ic="save"></span>Deposito → Corrente</button>
+  <button class="go" id="g-go3" style="margin-top:8px"><span class="ico" data-ic="save"></span>Corrente → Contanti (prelievo)</button>
   <div class="msg" id="g-msg"></div>
   <button class="undo" onclick="annullaUltimoUI('g-msg')"><span class="ico" data-ic="undo"></span>Annulla ultimo inserimento</button>
   <div id="g-lista" style="margin-top:12px"></div>
@@ -453,8 +455,8 @@ function tessera(cls, ic, titolo, valore, sub) {
   t.appendChild(el('div', sub || '', 'ts'));
   return t;
 }
-function caricaSaldi() {
-  var box = $('sd-body'); box.textContent = 'Caricamento...';
+function caricaSaldi(silent) {
+  var box = $('sd-body'); if (silent !== true) box.textContent = 'Caricamento...';
   google.script.run.withSuccessHandler(function (d) {
     box.textContent = '';
     var g = el('div', undefined, 'sg');
@@ -463,6 +465,11 @@ function caricaSaldi() {
     g.appendChild(tessera('t3', 'trending-up', 'Investimenti', d.investimenti, 'Trade Republic: valore al ' + d.dataBase + ' + PAC versati da allora (senza andamento mercato)'));
     var sub = d.speseNum + ' movimenti' + (d.speseFuoriConto > 0 ? ' · esclusi ' + fmtEuro(d.speseFuoriConto) + ' fuori conto' : '');
     g.appendChild(tessera('t4', 'banknote', 'Spese del mese', eur2(d.speseMese), sub));
+    if (d.contanti !== undefined) {
+      g.appendChild(tessera('t5 wide', 'wallet', 'Contanti', d.contanti, 'prelievi \u2212 spese con nota \u00ABcontanti\u00BB'));
+    } else {
+      g.appendChild(tessera('t5 wide', 'wallet', 'Contanti', 'n.d.', 'aggiorna lo script Apps Script (Nuova versione)'));
+    }
     box.appendChild(g);
     var parti = [['t1', '#33ff66', d.correnteNum], ['t2', '#35e6ff', d.depositoNum], ['t3', '#ffb000', d.investimentiNum]];
     var somma = parti.reduce(function (a, p) { return a + Math.max(p[2], 0); }, 0);
@@ -475,9 +482,13 @@ function caricaSaldi() {
       parti.forEach(function (p) { var x = el('span', Math.round(Math.max(p[2], 0) / somma * 100) + '%'); x.style.color = p[1]; leg.appendChild(x); });
       box.appendChild(leg);
     }
-  }).withFailureHandler(function (e) { box.textContent = 'Errore: ' + e.message; }).getSaldi();
+  }).withFailureHandler(function (e) { if (silent !== true) box.textContent = 'Errore: ' + e.message; }).getSaldi();
 }
-$('sd-go').onclick = caricaSaldi;
+$('sd-go').onclick = function () { caricaSaldi(); };
+// Aggiornamento automatico dei saldi: ogni 20 s e quando l'app torna in primo piano, solo se la scheda Saldi è aperta
+function saldiVisibili() { return !document.hidden && !$('v-saldi').classList.contains('hide') && $('setup').classList.contains('hide'); }
+setInterval(function () { if (saldiVisibili()) caricaSaldi(true); }, 20000);
+document.addEventListener('visibilitychange', function () { if (saldiVisibili()) caricaSaldi(true); });
 
 function caricaGiro() {
   var box = $('g-lista'); box.textContent = '';
@@ -516,6 +527,7 @@ function inviaGiro(verso, btnId) {
 }
 $('g-go1').onclick = function () { inviaGiro('Corrente \u2192 Deposito', 'g-go1'); };
 $('g-go2').onclick = function () { inviaGiro('Deposito \u2192 Corrente', 'g-go2'); };
+$('g-go3').onclick = function () { inviaGiro('Corrente \u2192 Contanti', 'g-go3'); };
 
 // Swipe sinistra/destra per cambiare scheda: Spesa <-> Entrata <-> Rate <-> Riepilogo
 var ORDINE = ['spesa', 'entrata', 'giro', 'rate', 'riep', 'saldi'];
